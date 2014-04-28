@@ -29,6 +29,7 @@ web.config.session_parameters = utils.storage({
     'cookie_name': 'webpy_session_id',
     'cookie_domain': None,
     'cookie_path' : None,
+    'cookie_timeout': None,
     'timeout': 86400, #24 * 60 * 60, # 24 hours in seconds
     'ignore_expiry': True,
     'ignore_change_ip': True,
@@ -134,7 +135,10 @@ class Session(object):
     
     def _save(self):
         if not self.get('_killed'):
-            self._setcookie(self.session_id)
+						if self._config.cookie_timeout == None:
+            	self._setcookie(self.session_id)
+            else:
+            	self._setcookie(self.session_id, expires=self._config.cookie_timeout)
             self.store[self.session_id] = dict(self._data)
         else:
             self._setcookie(self.session_id, expires=-1)
