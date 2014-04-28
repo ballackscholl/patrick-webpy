@@ -135,7 +135,7 @@ class Session(object):
     
     def _save(self):
         if not self.get('_killed'):
-						if self._config.cookie_timeout == None:
+            if self._config.cookie_timeout == None:
             	self._setcookie(self.session_id)
             else:
             	self._setcookie(self.session_id, expires=self._config.cookie_timeout)
