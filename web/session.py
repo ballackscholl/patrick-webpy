@@ -36,7 +36,8 @@ web.config.session_parameters = utils.storage({
     'secret_key': 'fLjUfxqXtfNoIldA0A0J',
     'expired_message': 'Session expired',
     'httponly': True,
-    'secure': False
+    'secure': False,
+    'keep_cookie': True,
 })
 
 class SessionExpired(web.HTTPError): 
@@ -135,10 +136,10 @@ class Session(object):
     
     def _save(self):
         if not self.get('_killed'):
-            if self._config.cookie_timeout == None:
-            	self._setcookie(self.session_id)
+            if self._config.keep_cookie:
+            	self._setcookie(self.session_id, self._config.cookie_timeout)
             else:
-            	self._setcookie(self.session_id, expires=self._config.cookie_timeout)
+            	self._setcookie(self.session_id)
             self.store[self.session_id] = dict(self._data)
         else:
             self._setcookie(self.session_id, expires=-1)
