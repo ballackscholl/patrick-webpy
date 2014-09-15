@@ -140,7 +140,6 @@ class Session(object):
     
     def _save(self):
         if web.ctx.env.get('HTTP_USER_AGENT') is None:
-            self.session_id = None
             return
         
         if not self.get('_killed'):
