@@ -93,8 +93,7 @@ class Session(object):
 
     def _load(self):
         """Load the session from the store, by the id from cookie"""
-        if web.ctx.env.get('HTTP_USER_AGENT') is None:
-            self.session_id = None
+        if not 'HTTP_USER_AGENT' in web.ctx.env:
             return
         
         cookie_name = self._config.cookie_name
@@ -139,7 +138,7 @@ class Session(object):
                return self.expired() 
     
     def _save(self):
-        if web.ctx.env.get('HTTP_USER_AGENT') is None:
+        if not 'HTTP_USER_AGENT' in web.ctx.env:
             return
         
         if not self.get('_killed'):
