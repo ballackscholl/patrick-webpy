@@ -103,6 +103,7 @@ class Session(object):
     def _load(self):
         """Load the session from the store, by the id from cookie"""
         if not 'HTTP_USER_AGENT' in web.ctx.env:
+            self.isBrowser = False
             return
         
         if not self.__isBrowser():
@@ -153,9 +154,7 @@ class Session(object):
                return self.expired() 
     
     def _save(self):
-        if not 'HTTP_USER_AGENT' in web.ctx.env:
-            return
-        
+    	        
         if not self.isBrowser:
             return
         
