@@ -52,8 +52,7 @@ class Session(object):
         "__getitem__", "__setitem__", "__delitem__"
     ]
     
-    __CLIENT_AGENT_LIST = ['MSIE', 'Firefox', 'Chrome', 'Safari', 'Opera', 'NetFront',
-                       'iPhone', 'MIDP', 'UCWEB']
+    __CLIENT_AGENT_LIST = ['MSIE', 'Firefox', 'Chrome', 'Safari', 'Opera', 'UCWEB']
 
     def __init__(self, app, store, initializer=None):
         self.store = store
