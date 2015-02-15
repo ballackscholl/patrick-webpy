@@ -37,7 +37,7 @@ web.config.session_parameters = utils.storage({
     'expired_message': 'Session expired',
     'httponly': True,
     'secure': False,
-    'keep_cookie': True,
+    'keep_cookie': False,
 })
 
 class SessionExpired(web.HTTPError): 
