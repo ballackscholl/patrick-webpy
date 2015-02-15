@@ -49,7 +49,7 @@ class Session(object):
     """
     __slots__ = [
         "store", "_initializer", "_last_cleanup_time", "_config", "_data", 
-        "__getitem__", "__setitem__", "__delitem__"
+        "__getitem__", "__setitem__", "__delitem__","setIsUseSession"
     ]
 
     __CLIENT_AGENT_LIST = ['MSIE', 'Firefox', 'Chrome', 'Safari', 'Opera', 'UCWEB']
@@ -61,7 +61,8 @@ class Session(object):
         self._last_cleanup_time = 0
         self._config = utils.storage(web.config.session_parameters)
         self._data = utils.threadeddict()
-        
+        self._isUseSession = True
+
         self.__getitem__ = self._data.__getitem__
         self.__setitem__ = self._data.__setitem__
         self.__delitem__ = self._data.__delitem__
@@ -74,6 +75,9 @@ class Session(object):
             if web.ctx.env['HTTP_USER_AGENT'].find(client) != -1:
                 return True
         return False
+
+    def setIsUseSession(self, isUse):
+        self._isUseSession = isUse
 
     def __contains__(self, name):
         return name in self._data
@@ -92,13 +96,15 @@ class Session(object):
 
     def _processor(self, handler):
         """Application processor to setup session for every request"""
-        self._cleanup()
-        self._load()
+        if self._isUseSession:
+            self._cleanup()
+            self._load()
 
         try:
             return handler()
         finally:
-            self._save()
+            if self._isUseSession:
+                self._save()
 
     def _load(self):
         """Load the session from the store, by the id from cookie"""
