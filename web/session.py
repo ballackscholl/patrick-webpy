@@ -62,6 +62,7 @@ class Session(object):
         self._config = utils.storage(web.config.session_parameters)
         self._data = utils.threadeddict()
         self._isUseSession = True
+        self.isBrowser = True
 
         self.__getitem__ = self._data.__getitem__
         self.__setitem__ = self._data.__setitem__
@@ -116,8 +117,6 @@ class Session(object):
         if not self.__isBrowser():
             self.isBrowser = False
             return
-
-        self.isBrowser = True
 
         cookie_name = self._config.cookie_name
         cookie_domain = self._config.cookie_domain
