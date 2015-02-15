@@ -52,9 +52,6 @@ class Session(object):
         "__getitem__", "__setitem__", "__delitem__","setIsUseSession"
     ]
 
-    __CLIENT_AGENT_LIST = ['MSIE', 'Firefox', 'Chrome', 'Safari', 'Opera', 'UCWEB']
-    
-
     def __init__(self, app, store, initializer=None):
         self.store = store
         self._initializer = initializer
@@ -70,12 +67,6 @@ class Session(object):
 
         if app:
             app.add_processor(self._processor)
-
-    def __isBrowser(self):
-        for client in Session.__CLIENT_AGENT_LIST:
-            if web.ctx.env['HTTP_USER_AGENT'].find(client) != -1:
-                return True
-        return False
 
     def setIsUseSession(self, isUse):
         self._isUseSession = isUse
@@ -109,14 +100,6 @@ class Session(object):
 
     def _load(self):
         """Load the session from the store, by the id from cookie"""
-
-        if not 'HTTP_USER_AGENT' in web.ctx.env:
-            self.isBrowser = False
-            return
-
-        if not self.__isBrowser():
-            self.isBrowser = False
-            return
 
         cookie_name = self._config.cookie_name
         cookie_domain = self._config.cookie_domain
@@ -160,9 +143,7 @@ class Session(object):
                return self.expired() 
     
     def _save(self):
-        if not self.isBrowser:
-            return
-
+        
         if not self.get('_killed'):
             if self._config.keep_cookie:
             	self._setcookie(self.session_id, self._config.cookie_timeout)
