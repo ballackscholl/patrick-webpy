@@ -59,7 +59,6 @@ class Session(object):
         self._config = utils.storage(web.config.session_parameters)
         self._data = utils.threadeddict()
         self._isUseSession = True
-        self.isBrowser = True
 
         self.__getitem__ = self._data.__getitem__
         self.__setitem__ = self._data.__setitem__
