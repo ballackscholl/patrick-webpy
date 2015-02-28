@@ -49,7 +49,7 @@ class Session(object):
     """
     __slots__ = [
         "store", "_initializer", "_last_cleanup_time", "_config", "_data", 
-        "__getitem__", "__setitem__", "__delitem__","setIsUseSession"
+        "__getitem__", "__setitem__", "__delitem__", "isUseSession", "session_id", "ip"
     ]
 
     def __init__(self, app, store, initializer=None):
@@ -58,7 +58,7 @@ class Session(object):
         self._last_cleanup_time = 0
         self._config = utils.storage(web.config.session_parameters)
         self._data = utils.threadeddict()
-        self._isUseSession = True
+        self.isUseSession = True
 
         self.__getitem__ = self._data.__getitem__
         self.__setitem__ = self._data.__setitem__
@@ -66,9 +66,6 @@ class Session(object):
 
         if app:
             app.add_processor(self._processor)
-
-    def setIsUseSession(self, isUse):
-        self._isUseSession = isUse
 
     def __contains__(self, name):
         return name in self._data
@@ -87,14 +84,14 @@ class Session(object):
 
     def _processor(self, handler):
         """Application processor to setup session for every request"""
-        if self._isUseSession:
+        if self.isUseSession:
             self._cleanup()
             self._load()
 
         try:
             return handler()
         finally:
-            if self._isUseSession:
+            if self.isUseSession:
                 self._save()
 
     def _load(self):
@@ -142,7 +139,7 @@ class Session(object):
                return self.expired() 
     
     def _save(self):
-        
+
         if not self.get('_killed'):
             if self._config.keep_cookie:
             	self._setcookie(self.session_id, self._config.cookie_timeout)
