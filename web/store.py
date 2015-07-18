@@ -33,7 +33,19 @@ class RedisStore(Store):
         if 'db' in kwargs:
             db = kwargs['db']
 
-        self.server = Redis(host=host, port=port,  db=db, password=password, socket_keepalive= True, encoding=encoding)
+
+        maxconn = 64
+        if 'maxconn' in kwargs:
+            maxconn = kwargs['maxconn']
+
+        if 'safe' in  kwargs and kwargs['safe']:
+            from redis import  BlockingConnectionPool
+            connectionPool = BlockingConnectionPool(max_connections=maxconn)
+        else:
+            from redis import  ConnectionPool
+            connectionPool = ConnectionPool(max_connections=maxconn)
+
+        self.server = Redis(host=host, port=port,  db=db, password=password, socket_keepalive= True, encoding=encoding, connection_pool=connectionPool)
 
     def __contains__(self, key):
         if key in self.server:
