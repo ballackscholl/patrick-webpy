@@ -33,7 +33,6 @@ class RedisStore(Store):
         if 'db' in kwargs:
             db = kwargs['db']
 
-
         maxconn = 64
         if 'maxconn' in kwargs:
             maxconn = kwargs['maxconn']
