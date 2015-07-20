@@ -36,13 +36,29 @@ class RedisStore(Store):
         maxconn = 64
         if 'maxconn' in kwargs:
             maxconn = kwargs['maxconn']
-
+				
+        poolParam = {
+            'db': db,
+            'password': password,
+            'socket_timeout': None,
+            'encoding': encoding,
+            'encoding_errors': 'strict',
+            'decode_responses': False,
+            'retry_on_timeout': False,
+            'max_connections' : maxconn,
+            'host': host,
+            'port': port,
+            'socket_connect_timeout': None,
+            'socket_keepalive': True,
+            'socket_keepalive_options': None,
+        }
+				
         if 'safe' in  kwargs and kwargs['safe']:
             from redis import  BlockingConnectionPool
-            connectionPool = BlockingConnectionPool(max_connections=maxconn)
+            connectionPool = BlockingConnectionPool(**poolParam)
         else:
             from redis import  ConnectionPool
-            connectionPool = ConnectionPool(max_connections=maxconn)
+            connectionPool = ConnectionPool(**poolParam)
 
         self.server = Redis(host=host, port=port,  db=db, password=password, socket_keepalive= True, encoding=encoding, connection_pool=connectionPool)
 
