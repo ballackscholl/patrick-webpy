@@ -28,8 +28,9 @@ __all__ = [
     "internalerror",
 ]
 
-import sys, cgi, Cookie, pprint, urlparse, urllib
+import sys, Cookie, pprint, urlparse, urllib
 from utils import storage, storify, threadeddict, dictadd, intget, safestr
+from web.utils import FieldStorage
 
 config = storage()
 config.__doc__ = """
@@ -301,16 +302,16 @@ def rawinput(method=None):
                 a = ctx.get('_fieldstorage')
                 if not a:
                     fp = e['wsgi.input']
-                    a = cgi.FieldStorage(fp=fp, environ=e, keep_blank_values=1)
+                    a = FieldStorage(fp=fp, environ=e, keep_blank_values=1)
                     ctx._fieldstorage = a
             else:
                 fp = StringIO(data())
-                a = cgi.FieldStorage(fp=fp, environ=e, keep_blank_values=1)
+                a = FieldStorage(fp=fp, environ=e, keep_blank_values=1)
             a = dictify(a)
 
     if method.lower() in ['both', 'get']:
         e['REQUEST_METHOD'] = 'GET'
-        b = dictify(cgi.FieldStorage(environ=e, keep_blank_values=1))
+        b = dictify(FieldStorage(environ=e, keep_blank_values=1))
 
     def process_fieldstorage(fs):
         if isinstance(fs, list):

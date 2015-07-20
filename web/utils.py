@@ -49,6 +49,26 @@ try:
 except ImportError:
     from python23 import threadlocal
 
+from operator import attrgetter
+from cgi import MiniFieldStorage, valid_boundary, parse_header
+import sys
+import os
+import urlparse
+
+from warnings import filterwarnings, catch_warnings, warn
+with catch_warnings():
+    if sys.py3kwarning:
+        filterwarnings("ignore", ".*mimetools has been removed",
+                       DeprecationWarning)
+        filterwarnings("ignore", ".*rfc822 has been removed",
+                       DeprecationWarning)
+    import rfc822
+
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
+
 class Storage(dict):
     """
     A Storage object is like a dictionary except `obj.foo` can be used
@@ -1541,6 +1561,455 @@ class _EmailMessage:
     
     def __str__(self):
         return self.message.as_string()
+
+maxlen = 0
+class FieldStorage:
+
+    """Store a sequence of fields, reading multipart/form-data.
+
+    This class provides naming, typing, files stored on disk, and
+    more.  At the top level, it is accessible like a dictionary, whose
+    keys are the field names.  (Note: None can occur as a field name.)
+    The items are either a Python list (if there's multiple values) or
+    another FieldStorage or MiniFieldStorage object.  If it's a single
+    object, it has the following attributes:
+
+    name: the field name, if specified; otherwise None
+
+    filename: the filename, if specified; otherwise None; this is the
+        client side filename, *not* the file name on which it is
+        stored (that's a temporary file you don't deal with)
+
+    value: the value as a *string*; for file uploads, this
+        transparently reads the file every time you request the value
+
+    file: the file(-like) object from which you can read the data;
+        None if the data is stored a simple string
+
+    type: the content-type, or None if not specified
+
+    type_options: dictionary of options specified on the content-type
+        line
+
+    disposition: content-disposition, or None if not specified
+
+    disposition_options: dictionary of corresponding options
+
+    headers: a dictionary(-like) object (sometimes rfc822.Message or a
+        subclass thereof) containing *all* headers
+
+    The class is subclassable, mostly for the purpose of overriding
+    the make_file() method, which is called internally to come up with
+    a file open for reading and writing.  This makes it possible to
+    override the default choice of storing all files in a temporary
+    directory and unlinking them as soon as they have been opened.
+
+    """
+
+    def __init__(self, fp=None, headers=None, outerboundary="",
+                 environ=os.environ, keep_blank_values=0, strict_parsing=0):
+        """Constructor.  Read multipart/* until last part.
+
+        Arguments, all optional:
+
+        fp              : file pointer; default: sys.stdin
+            (not used when the request method is GET)
+
+        headers         : header dictionary-like object; default:
+            taken from environ as per CGI spec
+
+        outerboundary   : terminating multipart boundary
+            (for internal use only)
+
+        environ         : environment dictionary; default: os.environ
+
+        keep_blank_values: flag indicating whether blank values in
+            percent-encoded forms should be treated as blank strings.
+            A true value indicates that blanks should be retained as
+            blank strings.  The default false value indicates that
+            blank values are to be ignored and treated as if they were
+            not included.
+
+        strict_parsing: flag indicating what to do with parsing errors.
+            If false (the default), errors are silently ignored.
+            If true, errors raise a ValueError exception.
+
+        """
+        method = 'GET'
+        self.keep_blank_values = keep_blank_values
+        self.strict_parsing = strict_parsing
+        if 'REQUEST_METHOD' in environ:
+            method = environ['REQUEST_METHOD'].upper()
+        self.qs_on_post = None
+        if method == 'GET' or method == 'HEAD':
+            if 'QUERY_STRING' in environ:
+                qs = environ['QUERY_STRING']
+            elif sys.argv[1:]:
+                qs = sys.argv[1]
+            else:
+                qs = ""
+            fp = StringIO(qs)
+            if headers is None:
+                headers = {'content-type':
+                           "application/x-www-form-urlencoded"}
+        if headers is None:
+            headers = {}
+            if method == 'POST':
+                # Set default content-type for POST to what's traditional
+                headers['content-type'] = "application/x-www-form-urlencoded"
+            if 'CONTENT_TYPE' in environ:
+                headers['content-type'] = environ['CONTENT_TYPE']
+            if 'QUERY_STRING' in environ:
+                self.qs_on_post = environ['QUERY_STRING']
+            if 'CONTENT_LENGTH' in environ:
+                headers['content-length'] = environ['CONTENT_LENGTH']
+        self.fp = fp or sys.stdin
+        self.headers = headers
+        self.outerboundary = outerboundary
+
+        # Process content-disposition header
+        cdisp, pdict = "", {}
+        if 'content-disposition' in self.headers:
+            cdisp, pdict = parse_header(self.headers['content-disposition'])
+        self.disposition = cdisp
+        self.disposition_options = pdict
+        self.name = None
+        if 'name' in pdict:
+            self.name = pdict['name']
+        self.filename = None
+        if 'filename' in pdict:
+            self.filename = pdict['filename']
+
+        # Process content-type header
+        #
+        # Honor any existing content-type header.  But if there is no
+        # content-type header, use some sensible defaults.  Assume
+        # outerboundary is "" at the outer level, but something non-false
+        # inside a multi-part.  The default for an inner part is text/plain,
+        # but for an outer part it should be urlencoded.  This should catch
+        # bogus clients which erroneously forget to include a content-type
+        # header.
+        #
+        # See below for what we do if there does exist a content-type header,
+        # but it happens to be something we don't understand.
+        if 'content-type' in self.headers:
+            ctype, pdict = parse_header(self.headers['content-type'])
+        elif self.outerboundary or method != 'POST':
+            ctype, pdict = "text/plain", {}
+        else:
+            ctype, pdict = 'application/x-www-form-urlencoded', {}
+        self.type = ctype
+        self.type_options = pdict
+        self.innerboundary = ""
+        if 'boundary' in pdict:
+            self.innerboundary = pdict['boundary']
+        clen = -1
+        if 'content-length' in self.headers:
+            try:
+                clen = int(self.headers['content-length'])
+            except ValueError:
+                pass
+            if maxlen and clen > maxlen:
+                raise ValueError, 'Maximum content length exceeded'
+        self.length = clen
+
+        self.list = self.file = None
+        self.done = 0
+        if ctype == 'application/x-www-form-urlencoded':
+            self.read_urlencoded()
+        elif ctype == 'application/json':
+            self.read_json()
+        elif ctype[:10] == 'multipart/':
+            self.read_multi(environ, keep_blank_values, strict_parsing)
+        else:
+            self.read_single()
+
+    def __repr__(self):
+        """Return a printable representation."""
+        return "FieldStorage(%r, %r, %r)" % (
+                self.name, self.filename, self.value)
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __getattr__(self, name):
+        if name != 'value':
+            raise AttributeError, name
+        if self.file:
+            self.file.seek(0)
+            value = self.file.read()
+            self.file.seek(0)
+        elif self.list is not None:
+            value = self.list
+        else:
+            value = None
+        return value
+
+    def __getitem__(self, key):
+        """Dictionary style indexing."""
+        if self.list is None:
+            raise TypeError, "not indexable"
+        found = []
+        for item in self.list:
+            if item.name == key: found.append(item)
+        if not found:
+            raise KeyError, key
+        if len(found) == 1:
+            return found[0]
+        else:
+            return found
+
+    def getvalue(self, key, default=None):
+        """Dictionary style get() method, including 'value' lookup."""
+        if key in self:
+            value = self[key]
+            if type(value) is type([]):
+                return map(attrgetter('value'), value)
+            else:
+                return value.value
+        else:
+            return default
+
+    def getfirst(self, key, default=None):
+        """ Return the first value received."""
+        if key in self:
+            value = self[key]
+            if type(value) is type([]):
+                return value[0].value
+            else:
+                return value.value
+        else:
+            return default
+
+    def getlist(self, key):
+        """ Return list of received values."""
+        if key in self:
+            value = self[key]
+            if type(value) is type([]):
+                return map(attrgetter('value'), value)
+            else:
+                return [value.value]
+        else:
+            return []
+
+    def keys(self):
+        """Dictionary style keys() method."""
+        if self.list is None:
+            raise TypeError, "not indexable"
+        return list(set(item.name for item in self.list))
+
+    def has_key(self, key):
+        """Dictionary style has_key() method."""
+        if self.list is None:
+            raise TypeError, "not indexable"
+        return any(item.name == key for item in self.list)
+
+    def __contains__(self, key):
+        """Dictionary style __contains__ method."""
+        if self.list is None:
+            raise TypeError, "not indexable"
+        return any(item.name == key for item in self.list)
+
+    def __len__(self):
+        """Dictionary style len(x) support."""
+        return len(self.keys())
+
+    def __nonzero__(self):
+        return bool(self.list)
+
+    def read_urlencoded(self):
+        """Internal: read data in query string format."""
+        qs = self.fp.read(self.length)
+        if self.qs_on_post:
+            qs += '&' + self.qs_on_post
+        self.list = list = []
+        for key, value in urlparse.parse_qsl(qs, self.keep_blank_values,
+                                            self.strict_parsing):
+            list.append(MiniFieldStorage(key, value))
+        self.skip_lines()
+
+    def read_json(self):
+        import json
+        try:
+            self.list = list = []
+            if self.qs_on_post:
+                for key, value in urlparse.parse_qsl(self.qs_on_post, self.keep_blank_values,
+                                            self.strict_parsing):
+                    list.append(MiniFieldStorage(key, value))
+
+            qs = self.fp.read(self.length)
+            qs = json.loads(qs)
+            if not isinstance(qs, dict):
+                return
+
+            for key in qs.keys():
+                list.append(MiniFieldStorage(key, qs[key]))
+        except:
+            pass
+
+
+    FieldStorageClass = None
+
+    def read_multi(self, environ, keep_blank_values, strict_parsing):
+        """Internal: read a part that is itself multipart."""
+        ib = self.innerboundary
+        if not valid_boundary(ib):
+            raise ValueError, 'Invalid boundary in multipart form: %r' % (ib,)
+        self.list = []
+        if self.qs_on_post:
+            for key, value in urlparse.parse_qsl(self.qs_on_post,
+                                self.keep_blank_values, self.strict_parsing):
+                self.list.append(MiniFieldStorage(key, value))
+            FieldStorageClass = None
+
+        klass = self.FieldStorageClass or self.__class__
+        part = klass(self.fp, {}, ib,
+                     environ, keep_blank_values, strict_parsing)
+        # Throw first part away
+        while not part.done:
+            headers = rfc822.Message(self.fp)
+            part = klass(self.fp, headers, ib,
+                         environ, keep_blank_values, strict_parsing)
+            self.list.append(part)
+        self.skip_lines()
+
+    def read_single(self):
+        """Internal: read an atomic part."""
+        if self.length >= 0:
+            self.read_binary()
+            self.skip_lines()
+        else:
+            self.read_lines()
+        self.file.seek(0)
+
+    bufsize = 8*1024            # I/O buffering size for copy to file
+
+    def read_binary(self):
+        """Internal: read binary data."""
+        self.file = self.make_file('b')
+        todo = self.length
+        if todo >= 0:
+            while todo > 0:
+                data = self.fp.read(min(todo, self.bufsize))
+                if not data:
+                    self.done = -1
+                    break
+                self.file.write(data)
+                todo = todo - len(data)
+
+    def read_lines(self):
+        """Internal: read lines until EOF or outerboundary."""
+        self.file = self.__file = StringIO()
+        if self.outerboundary:
+            self.read_lines_to_outerboundary()
+        else:
+            self.read_lines_to_eof()
+
+    def __write(self, line):
+        if self.__file is not None:
+            if self.__file.tell() + len(line) > 1000:
+                self.file = self.make_file('')
+                self.file.write(self.__file.getvalue())
+                self.__file = None
+        self.file.write(line)
+
+    def read_lines_to_eof(self):
+        """Internal: read lines until EOF."""
+        while 1:
+            line = self.fp.readline(1<<16)
+            if not line:
+                self.done = -1
+                break
+            self.__write(line)
+
+    def read_lines_to_outerboundary(self):
+        """Internal: read lines until outerboundary."""
+        next = "--" + self.outerboundary
+        last = next + "--"
+        delim = ""
+        last_line_lfend = True
+        while 1:
+            line = self.fp.readline(1<<16)
+            if not line:
+                self.done = -1
+                break
+            if delim == "\r":
+                line = delim + line
+                delim = ""
+            if line[:2] == "--" and last_line_lfend:
+                strippedline = line.strip()
+                if strippedline == next:
+                    break
+                if strippedline == last:
+                    self.done = 1
+                    break
+            odelim = delim
+            if line[-2:] == "\r\n":
+                delim = "\r\n"
+                line = line[:-2]
+                last_line_lfend = True
+            elif line[-1] == "\n":
+                delim = "\n"
+                line = line[:-1]
+                last_line_lfend = True
+            elif line[-1] == "\r":
+                # We may interrupt \r\n sequences if they span the 2**16
+                # byte boundary
+                delim = "\r"
+                line = line[:-1]
+                last_line_lfend = False
+            else:
+                delim = ""
+                last_line_lfend = False
+            self.__write(odelim + line)
+
+    def skip_lines(self):
+        """Internal: skip lines until outer boundary if defined."""
+        if not self.outerboundary or self.done:
+            return
+        next = "--" + self.outerboundary
+        last = next + "--"
+        last_line_lfend = True
+        while 1:
+            line = self.fp.readline(1<<16)
+            if not line:
+                self.done = -1
+                break
+            if line[:2] == "--" and last_line_lfend:
+                strippedline = line.strip()
+                if strippedline == next:
+                    break
+                if strippedline == last:
+                    self.done = 1
+                    break
+            last_line_lfend = line.endswith('\n')
+
+    def make_file(self, binary=None):
+        """Overridable: return a readable & writable file.
+
+        The file will be used as follows:
+        - data is written to it
+        - seek(0)
+        - data is read from it
+
+        The 'binary' argument is unused -- the file is always opened
+        in binary mode.
+
+        This version opens a temporary file for reading and writing,
+        and immediately deletes (unlinks) it.  The trick (on Unix!) is
+        that the file can still be used, but it can't be opened by
+        another process, and it will automatically be deleted when it
+        is closed or when the current process terminates.
+
+        If you want a more permanent file, you derive a class which
+        overrides this method.  If you want a visible temporary file
+        that is nevertheless automatically deleted when the script
+        terminates, try defining a __del__ method in a derived class
+        which unlinks the temporary files you have created.
+
+        """
+        import tempfile
+        return tempfile.TemporaryFile("w+b")
 
 if __name__ == "__main__":
     import doctest
