@@ -150,6 +150,7 @@ class Session(object):
             	self._setcookie(self.session_id, self._config.cookie_timeout)
             else:
             	self._setcookie(self.session_id)
+            self._data.ip = web.ctx.ip
             self.store[self.session_id] = dict(self._data)
         else:
             self._setcookie(self.session_id, expires=-1)
