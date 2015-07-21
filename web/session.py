@@ -49,7 +49,7 @@ class Session(object):
     """
     __slots__ = [
         "store", "_initializer", "_last_cleanup_time", "_config", "_data", 
-        "__getitem__", "__setitem__", "__delitem__", "isUseSession", "session_id", "ip"
+        "__getitem__", "__setitem__", "__delitem__", "session_id", "ip"
     ]
 
     def __init__(self, app, store, initializer=None):
@@ -58,7 +58,6 @@ class Session(object):
         self._last_cleanup_time = 0
         self._config = utils.storage(web.config.session_parameters)
         self._data = utils.threadeddict()
-        self.isUseSession = True
 
         self.__getitem__ = self._data.__getitem__
         self.__setitem__ = self._data.__setitem__
@@ -84,14 +83,20 @@ class Session(object):
 
     def _processor(self, handler):
         """Application processor to setup session for every request"""
-        if self.isUseSession:
+
+        try:
+            isUseSession = web.ctx.isUseSession
+        except Exception:
+            isUseSession = True
+
+        if isUseSession:
             self._cleanup()
             self._load()
 
         try:
             return handler()
         finally:
-            if self.isUseSession:
+            if isUseSession:
                 self._save()
 
     def _load(self):
