@@ -147,9 +147,9 @@ class Session(object):
 
         if not self.get('_killed'):
             if self._config.keep_cookie:
-            	self._setcookie(self.session_id, self._config.cookie_timeout)
+                self._setcookie(self.session_id, self._config.cookie_timeout)
             else:
-            	self._setcookie(self.session_id)
+                self._setcookie(self.session_id)
             self._data.ip = web.ctx.ip
             self.store[self.session_id] = dict(self._data)
         else:
