@@ -173,7 +173,7 @@ def storify(mapping, *requireds, **defaults):
     for key in requireds + tuple(mapping.keys()):
         value = mapping[key]
         if isinstance(value, list):
-            # if not isinstance(defaults.get(key), list):
+            # if isinstance(defaults.get(key), list):
             #     value = [getvalue(x) for x in value]
             # else:
             #     value = value[-1]
