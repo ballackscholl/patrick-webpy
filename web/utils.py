@@ -173,11 +173,15 @@ def storify(mapping, *requireds, **defaults):
     for key in requireds + tuple(mapping.keys()):
         value = mapping[key]
         if isinstance(value, list):
-            # if isinstance(defaults.get(key), list):
-            #     value = [getvalue(x) for x in value]
-            # else:
-            #     value = value[-1]
-            value = [getvalue(x) for x in value]
+            import web
+            if 'CONTENT_TYPE' in web.ctx.environ \
+                and web.ctx.environ.get('CONTENT_TYPE', '').lower() == 'application/json':
+                value = [getvalue(x) for x in value]
+            else:
+                if isinstance(defaults.get(key), list):
+                    value = [getvalue(x) for x in value]
+                else:
+                    value = value[-1]
         if not isinstance(defaults.get(key), dict):
             value = getvalue(value)
         if isinstance(defaults.get(key), list) and not isinstance(value, list):
