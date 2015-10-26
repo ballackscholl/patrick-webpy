@@ -482,45 +482,45 @@ debug.write = _debugwrite
 
 ctx = context = threadeddict()
 
-ctx.__doc__ = """
-A `storage` object containing various information about the request:
-  
-`environ` (aka `env`)
-   : A dictionary containing the standard WSGI environment variables.
-
-`host`
-   : The domain (`Host` header) requested by the user.
-
-`home`
-   : The base path for the application.
-
-`ip`
-   : The IP address of the requester.
-
-`method`
-   : The HTTP method used.
-
-`path`
-   : The path request.
-   
-`query`
-   : If there are no query arguments, the empty string. Otherwise, a `?` followed
-     by the query string.
-
-`fullpath`
-   : The full path requested, including query arguments (`== path + query`).
-
-### Response Data
-
-`status` (default: "200 OK")
-   : The status code to be used in the response.
-
-`headers`
-   : A list of 2-tuples to be used in the response.
-
-`output`
-   : A string to be used as the response.
-"""
+# ctx.__doc__ = """
+# A `storage` object containing various information about the request:
+#
+# `environ` (aka `env`)
+#    : A dictionary containing the standard WSGI environment variables.
+#
+# `host`
+#    : The domain (`Host` header) requested by the user.
+#
+# `home`
+#    : The base path for the application.
+#
+# `ip`
+#    : The IP address of the requester.
+#
+# `method`
+#    : The HTTP method used.
+#
+# `path`
+#    : The path request.
+#
+# `query`
+#    : If there are no query arguments, the empty string. Otherwise, a `?` followed
+#      by the query string.
+#
+# `fullpath`
+#    : The full path requested, including query arguments (`== path + query`).
+#
+# ### Response Data
+#
+# `status` (default: "200 OK")
+#    : The status code to be used in the response.
+#
+# `headers`
+#    : A list of 2-tuples to be used in the response.
+#
+# `output`
+#    : A string to be used as the response.
+# """
 
 if __name__ == "__main__":
     import doctest
