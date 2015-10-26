@@ -1234,19 +1234,11 @@ def tryall(context, prefix=None):
     for (key, value) in results.iteritems():
         print ' '*2, str(key)+':', value
 
-class LocalStorage(object):
-
-    def __init__(self):
-        self.storage = {}
-
-    def __call__(self, *args, **kwargs):
-        return self.storage
-
-localStorage = LocalStorage()
-
 class Local(object):
     """Implementation of threading.local for python2.3.
     """
+    _storage = {}
+
     def __getattribute__(self, name):
         if name == "__dict__":
             return Local._getd(self)
@@ -1273,20 +1265,13 @@ class Local(object):
         # if not hasattr(t, '_d'):
         #     # using __dict__ of thread as thread local storage
         #     t._d = {}
-        global localStorage
+
         _id = get_ident() #id(self)
         # there could be multiple instances of threadlocal.
         # use id(self) as key
-        if _id not in localStorage():
-            localStorage()[_id] = {}
-            localStorage()[_id][id(self)] = {}
-        else:
-            if id(self) not in localStorage()[_id]:
-                localStorage()[_id][id(self)] = {}
-        return localStorage()[_id][id(self)]
-
-
-
+        if _id not in self._storage:
+            self._storage[_id] = {}
+        return self._storage[_id]
 #threadlocal
 class ThreadedDict(Local):
     """
@@ -1305,12 +1290,13 @@ class ThreadedDict(Local):
         >>> d.x
         1
     """
-
+    _instances = set()
+    
     def __init__(self):
-        pass
+        ThreadedDict._instances.add(self)
         
     def __del__(self):
-        pass
+        ThreadedDict._instances.remove(self)
         
     def __hash__(self):
         return id(self)
@@ -1318,14 +1304,8 @@ class ThreadedDict(Local):
     def clear_all():
         """Clears all ThreadedDict instances.
         """
-        # for t in list(ThreadedDict._instances):
-        #     t.clear()
-        _id = get_ident()
-        if _id in localStorage():
-            del localStorage()[_id]
-        #print localStorage()
-
-
+        for t in list(ThreadedDict._instances):
+            t.clear()
     clear_all = staticmethod(clear_all)
     
     # Define all these methods to more or less fully emulate dict -- attribute access
