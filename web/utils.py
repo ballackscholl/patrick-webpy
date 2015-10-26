@@ -1277,13 +1277,14 @@ class Local(object):
         _id = get_ident() #id(self)
         # there could be multiple instances of threadlocal.
         # use id(self) as key
+        objId = id(self)
         if _id not in localStorage():
             localStorage()[_id] = {}
-            localStorage()[_id][id(self)] = {}
+            localStorage()[_id][objId] = {}
         else:
-            if id(self) not in localStorage()[_id]:
-                localStorage()[_id][id(self)] = {}
-        return localStorage()[_id][id(self)]
+            if objId not in localStorage()[_id]:
+                localStorage()[_id][objId] = {}
+        return localStorage()[_id][objId]
 
 
 
