@@ -44,10 +44,18 @@ try: set
 except NameError:
     from sets import Set as set
     
+# try:
+#     from threading import local as threadlocal
+# except ImportError:
+#     from python23 import threadlocal
+
 try:
-    from threading import local as threadlocal
+    from greenlet import getcurrent as get_ident
 except ImportError:
-    from python23 import threadlocal
+    try:
+        from thread import get_ident
+    except ImportError:
+        from _thread import get_ident
 
 from operator import attrgetter
 from cgi import MiniFieldStorage, valid_boundary, parse_header
@@ -1224,8 +1232,47 @@ def tryall(context, prefix=None):
     print 'results:'
     for (key, value) in results.iteritems():
         print ' '*2, str(key)+':', value
-        
-class ThreadedDict(threadlocal):
+
+class Local(object):
+    """Implementation of threading.local for python2.3.
+    """
+    _storage = {}
+
+    def __getattribute__(self, name):
+        if name == "__dict__":
+            return Local._getd(self)
+        else:
+            try:
+                return object.__getattribute__(self, name)
+            except AttributeError:
+                try:
+                    return self.__dict__[name]
+                except KeyError:
+                    raise AttributeError, name
+
+    def __setattr__(self, name, value):
+        self.__dict__[name] = value
+
+    def __delattr__(self, name):
+        try:
+            del self.__dict__[name]
+        except KeyError:
+            raise AttributeError, name
+
+    def _getd(self):
+        # t = threading.currentThread()
+        # if not hasattr(t, '_d'):
+        #     # using __dict__ of thread as thread local storage
+        #     t._d = {}
+
+        _id = get_ident() #id(self)
+        # there could be multiple instances of threadlocal.
+        # use id(self) as key
+        if _id not in self._storage:
+            self._storage[_id] = {}
+        return self._storage[_id]
+#threadlocal
+class ThreadedDict(Local):
     """
     Thread local storage.
     
@@ -2015,6 +2062,8 @@ class FieldStorage:
         """
         import tempfile
         return tempfile.TemporaryFile("w+b")
+
+
 
 if __name__ == "__main__":
     import doctest
