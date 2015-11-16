@@ -50,7 +50,9 @@ except NameError:
 #     from python23 import threadlocal
 
 try:
-    from greenlet import getcurrent as get_ident
+    from greenlet import getcurrent
+    def get_ident():
+        return id(getcurrent())
 except ImportError:
     try:
         from thread import get_ident
