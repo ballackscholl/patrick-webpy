@@ -49,7 +49,7 @@ class Session(object):
     """
     __slots__ = [
         "store", "_initializer", "_last_cleanup_time", "_config", "_data", 
-        "__getitem__", "__setitem__", "__delitem__", "session_id", "ip"
+        "__getitem__", "__setitem__", "__delitem__", #"session_id", "ip"
     ]
 
     def __init__(self, app, store, initializer=None):
