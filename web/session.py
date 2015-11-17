@@ -48,16 +48,16 @@ class Session(object):
     """Session management for web.py
     """
     __slots__ = [
-        "store", "_initializer", "_last_cleanup_time", "_config", "_data", 
-        "__getitem__", "__setitem__", "__delitem__", #"session_id", "ip"
+        "store", "_initializer", "_config", "_data",
+        "__getitem__", "__setitem__", "__delitem__", #"session_id", "ip", "_last_cleanup_time"
     ]
 
     def __init__(self, app, store, initializer=None):
         self.store = store
         self._initializer = initializer
-        self._last_cleanup_time = 0
         self._config = utils.storage(web.config.session_parameters)
         self._data = utils.threadeddict()
+        self._last_cleanup_time = 0
 
         self.__getitem__ = self._data.__getitem__
         self.__setitem__ = self._data.__setitem__
