@@ -48,8 +48,8 @@ class Session(object):
     """Session management for web.py
     """
     __slots__ = [
-        "store", "_initializer", "_config", "_data",
-        "__getitem__", "__setitem__", "__delitem__", #"session_id", "ip", "_last_cleanup_time"
+        "store", "_initializer", "_config", "_data", "_last_cleanup_time",
+        "__getitem__", "__setitem__", "__delitem__", #"session_id", "ip",
     ]
 
     def __init__(self, app, store, initializer=None):
