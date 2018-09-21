@@ -186,7 +186,7 @@ def storify(mapping, *requireds, **defaults):
         if isinstance(value, list):
             import web
             if 'CONTENT_TYPE' in web.ctx.environ \
-                and web.ctx.environ.get('CONTENT_TYPE', '').lower() == 'application/json':
+                    and web.ctx.environ.get('CONTENT_TYPE', '').lower().startswith('application/json'):
                 value = [getvalue(x) for x in value]
             else:
                 if isinstance(defaults.get(key), list):
